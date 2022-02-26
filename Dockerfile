@@ -1,12 +1,17 @@
-FROM golang:1.17
+FROM golang:1.17 as build
 
-WORKDIR /
+WORKDIR /app
+COPY ./go.mod .
+COPY ./go.sum .
 
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
-COPY go.mod go.sum ./
-RUN go mod download && go mod verify
-
+RUN go mod download
 COPY . .
-RUN go build -v -o /usr/local/bin/app ./...
+RUN go build -o /build/app .
 
-CMD ["app"]
+FROM golang:1.17 as run
+
+COPY --from=build /build/app /app
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app"]
