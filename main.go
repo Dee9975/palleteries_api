@@ -20,6 +20,16 @@ func main() {
 	r.POST("/employees", addEmployee)
 	r.DELETE("/employees/:id", removeEmployee)
 
+	r.GET("/brigades")
+	r.POST("/brigades")
+	r.DELETE("/brigades/:id")
+
+	r.POST("/send_day")
+
+	r.GET("/history")
+
+	r.PUT("/team")
+
 	r.Run()
 }
 
