@@ -16,22 +16,31 @@ import (
 func main() {
 	initDb()
 	r := gin.Default()
+	// Employees crud
 	r.GET("/employees", getEmployees)
 	r.POST("/employees", addEmployee)
 	r.DELETE("/employees/:id", removeEmployee)
+	r.PUT("/employees/:id", updateEmployee)
 
+	// Brigades crud
 	r.GET("/brigades")
 	r.POST("/brigades")
 	r.DELETE("/brigades/:id")
+	r.PUT("/brigades/:id")
 
+	// Save a teams' day
 	r.POST("/send_day", sendDay)
 
-	r.GET("/history")
+	// Get history of all teams
+	r.GET("/history", getHistory)
 
-	r.PUT("/team")
+	// Edit team from history
+	r.PUT("/team/:id", updateTeam)
 
+	// Settings crud
 	r.GET("/settings")
 	r.POST("/settings")
+	r.PUT("/settings/:id")
 
 	r.Run()
 }
@@ -60,6 +69,60 @@ func sendDay(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, finalTeam)
+}
+
+func updateEmployee(c *gin.Context) {
+	id := c.Param("id")
+
+	mId, err := strconv.Atoi(id)
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	employee := models.Employee{}
+
+	if err := c.BindJSON(&employee); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := mgm.Coll(&models.Employee{}).UpdateOne(context.Background(), bson.M{"id": mId}, &employee)
+
+	if err != nil {
+		c.AbortWithError(http.StatusNotFound, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "Ok", "count": result.ModifiedCount, "employee": employee})
+}
+
+func updateTeam(c *gin.Context) {
+	id := c.Param("id")
+
+	mId, err := strconv.Atoi(id)
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	team := models.Team{}
+
+	if err := c.BindJSON(&team); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := mgm.Coll(&team).UpdateOne(context.Background(), bson.M{"id": mId}, &team)
+
+	if err != nil {
+		c.AbortWithError(http.StatusNotFound, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "Ok", "count": result.ModifiedCount, "team": team})
 }
 
 func calculatePayout(p models.Plank) float64 {
@@ -191,4 +254,17 @@ func removeEmployee(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, &result)
+}
+
+func getHistory(c *gin.Context) {
+	result := []models.Team{}
+
+	err := mgm.Coll(&models.Team{}).SimpleFind(&result, bson.M{})
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
