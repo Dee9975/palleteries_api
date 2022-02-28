@@ -7,6 +7,7 @@ import (
 	"palleteries_api/models"
 	"strconv"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kamva/mgm/v3"
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,6 +17,7 @@ import (
 func main() {
 	initDb()
 	r := gin.Default()
+	r.Use(cors.Default())
 	// Employees crud
 	r.GET("/employees", getEmployees)
 	r.POST("/employees", addEmployee)
@@ -23,10 +25,10 @@ func main() {
 	r.PUT("/employees/:id", updateEmployee)
 
 	// Brigades crud
-	r.GET("/brigades")
-	r.POST("/brigades")
-	r.DELETE("/brigades/:id")
-	r.PUT("/brigades/:id")
+	r.GET("/brigades", getBrigades)
+	r.POST("/brigades", addBrigade)
+	r.DELETE("/brigades/:id", deleteBrigade)
+	r.PUT("/brigades", updateBrigade)
 
 	// Save a teams' day
 	r.POST("/send_day", sendDay)
@@ -267,4 +269,70 @@ func getHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func addBrigade(c *gin.Context) {
+	brigade := models.Brigade{}
+
+	if err := c.BindJSON(&brigade); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := mgm.Coll(&brigade).Create(&brigade); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, &brigade)
+}
+
+func getBrigades(c *gin.Context) {
+	result := []models.Brigade{}
+	err := mgm.Coll(&models.Brigade{}).SimpleFind(&result, bson.M{})
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func deleteBrigade(c *gin.Context) {
+	id := c.Param("id")
+
+	mId, err := strconv.Atoi(id)
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := mgm.Coll(&models.Brigade{}).DeleteOne(context.Background(), bson.M{"id": mId})
+
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, &result)
+}
+
+func updateBrigade(c *gin.Context) {
+	brigade := models.Brigade{}
+
+	if err := c.BindJSON(&brigade); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := mgm.Coll(&models.Brigade{}).UpdateOne(context.Background(), bson.M{"id": brigade.ID}, &brigade)
+
+	if err != nil {
+		c.AbortWithError(http.StatusNotFound, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "Ok", "count": result.ModifiedCount, "employee": brigade})
 }
