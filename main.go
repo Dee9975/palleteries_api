@@ -155,25 +155,27 @@ func calculateTotal(tara []models.Plank) float64 {
 	return total
 }
 
-func calculateDayPay(total float64, members []models.TeamMember) float64 {
-	workingMembers := []models.TeamMember{}
-	totalHours := 0
+func calculateDayPay(total float64, members []models.TeamMember, splitMembers []models.SplitMember) float64 {
+	count := 0
 
 	for _, m := range members {
 		if !m.Forklift {
-			totalHours += m.Hours
-			workingMembers = append(workingMembers, m)
+			count++
 		}
 	}
 
-	return total / float64((len(workingMembers) + totalHours/8))
+	for range splitMembers {
+		count++
+	}
+
+	return total / float64(count)
 }
 
 func calculateSalaries(team models.Team) models.Team {
 	finalMembers := []models.TeamMember{}
 
 	total := calculateTotal(team.Planks)
-	dayPay := calculateDayPay(total, team.Members)
+	dayPay := calculateDayPay(total, team.Members, team.SplitMembers)
 
 	for _, m := range team.Members {
 		salary := dayPay
@@ -202,6 +204,37 @@ func calculateSalaries(team models.Team) models.Team {
 		finalMember := m
 		finalMember.Salary = salary
 		finalMembers = append(finalMembers, finalMember)
+	}
+
+	for _, s := range team.SplitMembers {
+		for _, m := range s.Members {
+			salary := dayPay
+			if m.Forklift {
+				salary += (0.2 * dayPay)
+			}
+
+			if m.Kalts {
+				for _, p := range team.Planks {
+					if p.Kalts {
+						salary += p.Volume * 0.22
+					}
+				}
+			}
+
+			if m.ExtraHours > 0 {
+				salary += (4.65 * float64(m.ExtraHours))
+			}
+
+			if m.Hours < 8 {
+				splitMember := m
+				splitMember.Salary = (dayPay / 8.0) * float64(m.Hours)
+				finalMembers = append(finalMembers, splitMember)
+				continue
+			}
+			finalMember := m
+			finalMember.Salary = salary
+			finalMembers = append(finalMembers, finalMember)
+		}
 	}
 
 	finalTeam := team
